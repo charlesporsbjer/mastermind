@@ -35,8 +35,9 @@ use std::env;
 // allow p1 to compete against the AI, DONE
 // change pvp and pvb prints to be more clear about whos turn it is, DONE
 // make sure player cannot enter Color::empty if it is not in the game, DONE
-// PRIORITY: allow for user to save game.
+// allow for user to save and load game. DONE
 // PRIORITY: obscure target line after user enters it somehow
+// PRIORITY: Solve bug where information is added at load game.
 // NORMAL: Convert bot logic from HashSet to Index-To-Line Conversion / Base-N Counting.
 // OPTIONAL: fix the math in time_estimation
 // OPTIONAL: expand number of colors to allow more colors, POSTPONED
