@@ -11,7 +11,7 @@ pub fn handle_load() -> (GameConfig, Gamestate, Option<Bot>) {
     let mut save_name = String::new();
     println!("Type the name of your save to load it.");
 
-    print!("Saves: ");
+    println!("Saves: ");
 
     for save in list_save_files() {
         println!("{} ", save);

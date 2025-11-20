@@ -72,7 +72,7 @@ impl GameConfig {
 
         println!("Loaded configuration from {}!", filename);
         Some(GameConfig {
-            game_mode: game_mode, // Replace with actual value when supported
+            game_mode: game_mode,
             number_of_guesses: guesses,
             pegs_in_a_line: pegs,
             is_empty_pegs_allowed: empty,

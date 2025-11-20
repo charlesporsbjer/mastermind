@@ -44,22 +44,20 @@ pub fn print_complexity_analysis(pegs: usize, allow_empty: bool) {
     let colors: u128 = if allow_empty { 7 } else { 6 };
     let width = pegs as u32;
 
-    // 1. Calculate Search Space (N)
+    // Calculate Search Space (N)
     let total_combinations = colors.pow(width);
 
-    // 2. Calculate Minimax Complexity (N^2)
-    // We compare every possible solution against every other solution
+    // Calculate Minimax Complexity (N^2)
+    // Since we compare every possible solution against every other solution
     let minimax_checks = total_combinations
         .checked_mul(total_combinations)
         .unwrap_or(u128::MAX);
 
-    // 3. Estimate Time
-    // A modern CPU single-core can do roughly 10-20 million "match checks" per second
-    // inside a heavy loop with HashMap overhead. Let's assume 15,000,000 ops/sec.
-    let ops_per_sec = 15_000_000_u128;
+    // Estimate CPU to 20 million "match checks" per second
+    let ops_per_sec = 20_000_000_u128;
     let seconds_est = minimax_checks / ops_per_sec;
 
-    println!("\n---   ⚠️  COMPUTATIONAL COMPLEXITY WARNING ⚠️    ---");
+    println!("\n---   !! COMPUTATIONAL COMPLEXITY WARNING !!    ---");
     println!("Formula: Colors^Pegs = Search Space (N)");
     println!("Minimax Complexity: N * N (The bot compares everything against everything)");
     println!("----------------------------------------------------");
@@ -90,7 +88,7 @@ pub fn print_complexity_analysis(pegs: usize, allow_empty: bool) {
     println!("----------------------------------------------------\n");
 }
 
-// Helper to make big numbers readable (e.g. 1,000,000)
+// Makes big numbers readable
 fn format_number(n: u128) -> String {
     let s = n.to_string();
     let mut result = String::new();
@@ -103,20 +101,6 @@ fn format_number(n: u128) -> String {
         count += 1;
     }
     result.chars().rev().collect()
-}
-
-pub fn check_round_win(is_win: bool, rounds_used: usize, gamestate: Gamestate) {
-    if is_win {
-        println!(
-            "You won with {} out of {} guesses! Target was solved.",
-            rounds_used, gamestate.game_length
-        );
-    } else {
-        println!(
-            "You lost! Target not found in {} guesses.\nThe target was {:?}",
-            gamestate.game_length, gamestate.target_line,
-        );
-    }
 }
 
 pub fn get_human_target_line(gamestate: &Gamestate) -> Line {
@@ -143,9 +127,8 @@ pub fn get_human_target_line(gamestate: &Gamestate) -> Line {
     println!("========================================\n");
     print!("ENTER {} COLORS: ", gamestate.pegs_in_a_line);
 
+    // Former function clears screen
     let line = get_validated_line_input(gamestate.pegs_in_a_line, gamestate.is_empty_allowed);
-
-    // Clear screen?
 
     println!(
         "Code set! Scroll up strictly forbidden. Passing to Code Breaker ({})",
@@ -188,6 +171,10 @@ pub fn check_for_win(gamestate: &Gamestate) -> bool {
     gamestate.guessed_lines.contains(&gamestate.target_line)
 }
 
+pub fn check_for_loss(gamestate: &Gamestate) -> bool {
+    gamestate.guessed_lines.len() >= gamestate.round_length as usize
+}
+
 pub fn handle_bot_input(bot_ref: &mut Bot, gamestate: &mut Gamestate) {
     let new_guess = bot_ref.make_educated_guess();
     let (flags, feedback) = check_for_matches(&gamestate.target_line, &new_guess);
@@ -198,7 +185,7 @@ pub fn handle_bot_input(bot_ref: &mut Bot, gamestate: &mut Gamestate) {
     bot_ref.prune_non_viable_solutions();
 }
 
-// Helper function to create a clean Gamestate for restarting Solo/PvB
+// Create clean Gamestate for restarting Solo/PvB
 pub fn create_new_solo_session(mode: GameMode, config: &GameConfig) -> Gamestate {
     let no_of_pegs = config.pegs_in_a_line as usize;
 
@@ -217,7 +204,7 @@ pub fn create_new_solo_session(mode: GameMode, config: &GameConfig) -> Gamestate
         config.is_empty_pegs_allowed,
     );
 
-    // If PvB, we must get the new code from the human before the loop starts
+    // If PvB, get new code from the human before loop starts
     if mode == GameMode::PlayerVsBot {
         new_gamestate.target_line = get_human_target_line(&new_gamestate);
     }
@@ -225,8 +212,9 @@ pub fn create_new_solo_session(mode: GameMode, config: &GameConfig) -> Gamestate
     new_gamestate
 }
 
-fn get_player_strings(gamestate: &Gamestate, is_p2_a_bot: bool) -> (&'static str, &'static str) {
+fn get_player_strings(gamestate: &Gamestate) -> (&'static str, &'static str) {
     let p2_bot_string = "BOT";
+    let is_p2_a_bot = gamestate.game_mode == GameMode::PlayerVsBot;
 
     // Logic to determine Maker vs Breaker
     // If p1s_turn is TRUE, it means P1 is currently guessing (Breaker)
@@ -255,9 +243,8 @@ pub fn handle_two_player_end_of_round(
     gamestate: &mut Gamestate,
     bot: &Option<Bot>,
     is_empty_pegs_allowed: bool,
-    is_p2_a_bot: bool,
 ) -> bool {
-    let (maker, breaker) = get_player_strings(gamestate, is_p2_a_bot);
+    let (maker, breaker) = get_player_strings(gamestate);
 
     let guesses_used = gamestate.guessed_lines.len() as u8;
     let is_win = check_for_win(gamestate);
@@ -265,28 +252,44 @@ pub fn handle_two_player_end_of_round(
     let bonus = if !is_win { 1 } else { 0 };
     let score_delta = guesses_used + bonus;
 
-    // Update the Maker's score
+    // Update Maker's score
     if gamestate.p1s_turn {
         gamestate.p2_score += score_delta;
     } else {
         gamestate.p1_score += score_delta;
     }
 
+    let win_or_loss_str = if is_win { "solved" } else { "didn't solve" };
+    let bonus_str = if bonus != 0 {
+        format!(" + {} bonus", bonus)
+    } else {
+        "".to_string()
+    };
+    let p2_string = if gameconfig.game_mode == GameMode::PlayerVsBot {
+        "BOT"
+    } else {
+        "P2"
+    };
+
     println!("\n--- ROUND {} ENDED ---", gamestate.current_round);
-    println!("{} solved the code in {} guesses.", breaker, guesses_used);
-    println!("{} (Code Maker) gains {} points.", maker, score_delta);
     println!(
-        "🏆 SCOREBOARD: P1: {} | {}: {}",
-        gamestate.p1_score,
-        if is_p2_a_bot { "BOT" } else { "P2" },
-        gamestate.p2_score
+        "{} {} the code in {} guesses.",
+        breaker, win_or_loss_str, guesses_used
+    );
+    println!(
+        "{} (Code Maker) gains {}{} points.",
+        maker, guesses_used, bonus_str
+    );
+    println!(
+        "--- SCOREBOARD: P1: {} | {}: {}",
+        gamestate.p1_score, p2_string, gamestate.p2_score
     );
 
-    // Ask if the players want to continue
+    // Ask if players want to continue
     let continue_playing = continue_playing(gameconfig, gamestate, bot);
 
     if continue_playing {
-        // Prepare for the next round (clears board, swaps p1s_turn)
+        // Prepare for next round (clears board, swaps p1s_turn)
         gamestate.prepare_next_round(Line::empty(gamestate.pegs_in_a_line));
 
         // After prepare_next_round, roles have swapped:
@@ -298,12 +301,11 @@ pub fn handle_two_player_end_of_round(
             // PvB where P2 (Bot) is about to guess so player sets target.
             get_human_target_line(gamestate)
         } else {
-            // PvB where P1 (Human) is about to guess so bot sets the target.
+            // PvB where P1 (Human) is about to guess so bot sets target.
             randomize_target_line(gamestate.pegs_in_a_line, is_empty_pegs_allowed)
         };
 
         gamestate.target_line = target_line;
     }
-
     continue_playing
 }

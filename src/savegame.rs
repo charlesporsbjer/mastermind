@@ -35,26 +35,24 @@ pub fn handle_save(gameconfig: &GameConfig, gamestate: &Gamestate, bot: &Option<
         io::stdin().read_line(&mut name).unwrap();
         let name = name.trim();
 
-        // 1. Allow the user to abort
+        // Allow user to abort
         if name.eq_ignore_ascii_case("cancel") {
             println!("Save cancelled.");
             break;
         }
 
-        // 2. Don't allow empty filenames
+        // Don't allow empty filenames
         if name.is_empty() {
             continue;
         }
 
-        // 3. Attempt Save
+        // Attempt Save
         match save_game(name, gameconfig, gamestate, bot) {
             Ok(_) => {
-                // Success! Print confirmation and break.
                 println!("Game saved successfully to {}/{}.sjon", SAVE_DIR, name);
                 break;
             }
             Err(e) => {
-                // Failure! Print error and Loop again to retry.
                 println!("Error saving game: {}. Please try again.", e);
             }
         }

@@ -1,19 +1,21 @@
 use crate::gamestate::Gamestate;
+use crate::io::clear_screen;
 use crate::types::{Color, Line};
 
 use colored::{ColoredString, Colorize};
 
 pub fn draw_board(gamestate: &Gamestate) {
+    clear_screen();
     let symbol = "●";
     let n = gamestate.pegs_in_a_line;
 
-    // 1. Calculate Board Widths
+    // Calculate Board Widths
     // Rule: Minimum 10 width for text fitting, otherwise grow by 2 chars per peg
     let col_width = std::cmp::max(n * 2 + 2, 10);
     let total_width = (col_width * 2) + 1;
 
-    // 2. Define the Legend
-    // The Colored version is for printing
+    // Define Legend
+    // Note, The Colored version is for printing
     let legend_colored = format!(
         " Colors {} {} {} {} {} {} ",
         symbol.white(),
@@ -23,13 +25,13 @@ pub fn draw_board(gamestate: &Gamestate) {
         symbol.green(),
         symbol.yellow()
     );
-    // The Plain version is ONLY for measuring length (must match spaces of colored version)
+
     let legend_plain = " Colors ● ● ● ● ● ● ";
     let visual_len = legend_plain.chars().count();
 
-    // 3. The "Wildcard" Calculation
-    // We subtract the legend length from the board width.
-    // This naturally adds 2 spaces per peg over 4, and subtracts for under 4.
+    // Wildcard Calculation
+    // Subtract legend length from board width.
+    // Adds 2 spaces per peg over 4, and subtracts for under 4.
     let total_empty_space = total_width.saturating_sub(visual_len);
 
     let pad_left_len = total_empty_space / 2;
@@ -48,7 +50,7 @@ pub fn draw_board(gamestate: &Gamestate) {
 
     println!("{}", roof.on_bright_black());
 
-    // 4. Inject the Wildcard Padding
+    // Inject Wildcard Padding
     println!(
         "{}",
         format!(
@@ -66,7 +68,6 @@ pub fn draw_board(gamestate: &Gamestate) {
     );
     println!("{}", separator.on_bright_black());
 
-    // FIX STARTS HERE
     let rounds = gamestate.guessed_lines.len();
     let pegs_count = gamestate.pegs_in_a_line;
 
@@ -86,8 +87,6 @@ pub fn draw_board(gamestate: &Gamestate) {
         let guess_row = format_line(&gamestate.guessed_lines[i]);
         let flag_row = format_line(&gamestate.flag_pegs[i]);
 
-        // We manually sandwich the content between the calculated padding.
-        // We also removed the extra spaces you had in the string "║ {:^w$}...".
         println!(
             "{}",
             format!(
@@ -105,7 +104,6 @@ pub fn draw_board(gamestate: &Gamestate) {
     println!("{}", floor.on_bright_black());
 }
 
-// Helper: This remains mostly the same, just ensures consistent spacing
 fn format_line(line: &Line) -> String {
     line.pegs
         .iter()
@@ -114,11 +112,10 @@ fn format_line(line: &Line) -> String {
         .join(" ")
 }
 
-// Helper: Remains the same
 fn colored_symbol(color: Color) -> ColoredString {
     let symbol = "●";
     match color {
-        Color::Empty => " ".normal(), // Might want a small dot "." for empty placeholder
+        Color::Empty => " ".normal(),
         Color::White => symbol.white(),
         Color::Black => symbol.black(),
         Color::Red => symbol.red(),

@@ -11,7 +11,7 @@ pub enum GameMode {
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Gamestate {
     pub game_mode: GameMode,
-    pub game_length: u8,
+    pub round_length: u8,
     pub is_empty_allowed: bool,
     pub pegs_in_a_line: usize,
     pub guess_made: bool,
@@ -34,7 +34,7 @@ impl Gamestate {
     ) -> Self {
         Gamestate {
             game_mode: game_mode,
-            game_length: number_of_guesses,
+            round_length: number_of_guesses,
             is_empty_allowed: is_empty_allowed,
             pegs_in_a_line: pegs_in_a_line,
             guess_made: false,

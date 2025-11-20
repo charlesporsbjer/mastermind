@@ -14,12 +14,12 @@ use crate::bot::Bot;
 use crate::draw::draw_board;
 use crate::gameconfig::GameConfig;
 use crate::gamelogic::{
-    check_for_win, check_round_win, create_new_solo_session, get_human_target_line,
+    check_for_loss, check_for_win, create_new_solo_session, get_human_target_line,
     handle_bot_input, handle_two_player_end_of_round, print_complexity_analysis,
     randomize_target_line,
 };
 use crate::gamestate::{GameMode, Gamestate};
-use crate::io::{await_input, continue_playing};
+use crate::io::{await_input, continue_playing, print_win_or_loss};
 use crate::loadgame::handle_load;
 use crate::types::Line;
 use crate::usersetup::{StartupAction, user_setup};
@@ -36,7 +36,9 @@ use std::env;
 // change pvp and pvb prints to be more clear about whos turn it is, DONE
 // make sure player cannot enter Color::empty if it is not in the game, DONE
 // allow for user to save and load game. DONE
-// PRIORITY: obscure target line after user enters it somehow
+// obscure target line after user enters it somehow DONE
+// Refine solution print when user is out of guesses. DONE
+// Solve bug where player is said to have won when out of guesses. DONE
 // PRIORITY: Solve bug where information is added at load game.
 // NORMAL: Convert bot logic from HashSet to Index-To-Line Conversion / Base-N Counting.
 // OPTIONAL: fix the math in time_estimation
@@ -124,25 +126,22 @@ fn main() {
         // Check round end conditions.
         let rounds_used = gamestate.guessed_lines.len();
         let is_win = check_for_win(&gamestate);
-        let is_loss = rounds_used >= gamestate.game_length as usize;
+        let is_loss = check_for_loss(&gamestate);
         let round_over = is_win || is_loss;
 
         if round_over {
             draw_board(&gamestate);
 
+            print_win_or_loss(is_win, rounds_used, gamestate.clone());
+
             if game_mode == GameMode::TwoPlayer || game_mode == GameMode::PlayerVsBot {
                 // Both PvP and PvB use the same end-of-round logic (scoring, swapping, input)
-                let mut is_p2_a_bot = false;
-                if game_mode == GameMode::PlayerVsBot {
-                    is_p2_a_bot = true;
-                }
 
                 if handle_two_player_end_of_round(
                     &config,
                     &mut gamestate,
                     &bot,
                     is_empty_pegs_allowed,
-                    is_p2_a_bot,
                 ) {
                     // Reset Bot's solution set if continuing
                     if let Some(bot_ref) = bot.as_mut() {
@@ -153,8 +152,6 @@ fn main() {
                     break 'game_session; // Exit the entire application
                 }
             }
-
-            check_round_win(is_win, rounds_used, gamestate.clone());
 
             let continue_playing = continue_playing(&config, &gamestate, &bot);
 

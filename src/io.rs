@@ -4,7 +4,22 @@ use crate::savegame::handle_save;
 use crate::types::{Color, Line};
 use crate::{Bot, Gamestate};
 
-use std::io::{self, Write};
+use crossterm::{
+    execute,
+    terminal::{Clear, ClearType},
+};
+use std::io::{self, Write, stdout};
+
+pub fn clear_screen() {
+    execute!(stdout(), Clear(ClearType::All)).unwrap();
+}
+
+fn print_target_line(target: &Line) {
+    for peg in target.pegs.iter() {
+        print!("{:?} ", peg.color);
+    }
+    print!("\n");
+}
 
 pub fn continue_playing(gameconfig: &GameConfig, gamestate: &Gamestate, bot: &Option<Bot>) -> bool {
     loop {
@@ -33,12 +48,24 @@ pub fn continue_playing(gameconfig: &GameConfig, gamestate: &Gamestate, bot: &Op
     }
 }
 
-// This is the core logic, extracted and reusable.
+pub fn print_win_or_loss(is_win: bool, rounds_used: usize, gamestate: Gamestate) {
+    if is_win {
+        println!(
+            "You won with {} out of {} guesses! Target was solved.",
+            rounds_used, gamestate.round_length
+        );
+    } else {
+        print!(
+            "You lost! Target not found in {} guesses.\nThe target was: ",
+            gamestate.round_length
+        );
+        // Just wanna test this print for now.
+        print_target_line(&gamestate.target_line);
+    }
+}
+
 pub fn get_validated_line_input(pegs_count: usize, is_empty_allowed: bool) -> Line {
     loop {
-        // Prompting is done by the caller (await_input or get_human_target_line)
-
-        // Ensure stdout is flushed for immediate print
         io::stdout().flush().unwrap();
 
         let mut guess_input = String::new();
@@ -49,6 +76,7 @@ pub fn get_validated_line_input(pegs_count: usize, is_empty_allowed: bool) -> Li
         let mut line = Line::empty(pegs_count);
 
         if colors.len() != pegs_count {
+            clear_screen();
             println!("You must enter exactly {} colors.", pegs_count);
             continue;
         }
@@ -56,8 +84,9 @@ pub fn get_validated_line_input(pegs_count: usize, is_empty_allowed: bool) -> Li
         let mut valid = true;
         for (i, c) in colors.iter().enumerate() {
             let color = parse_guess(c);
-            // This is the specific logic to prevent setting an Invalid color unless "empty" was typed
+            // Prevent setting an Invalid color unless "empty" was typed
             if color == Color::Empty && (c.to_lowercase() != "empty" || !is_empty_allowed) {
+                clear_screen();
                 println!("Invalid color: '{}'", c);
                 valid = false;
                 break;
@@ -66,7 +95,8 @@ pub fn get_validated_line_input(pegs_count: usize, is_empty_allowed: bool) -> Li
         }
 
         if valid {
-            return line; // Return the fully validated Line
+            clear_screen();
+            return line;
         }
     }
 }
@@ -90,10 +120,10 @@ pub fn await_input(gamestate: &mut Gamestate) {
         gamestate.pegs_in_a_line
     );
 
-    // Get the validated guess line
+    // Get validated guess line
     let line = get_validated_line_input(gamestate.pegs_in_a_line, gamestate.is_empty_allowed);
 
-    // Update Gamestate (This logic remains the same)
+    // Update Gamestate
     gamestate.guessed_lines.push(line);
     let (flags, _) = check_for_matches(
         &gamestate.target_line,
