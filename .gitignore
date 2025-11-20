@@ -1,0 +1,3 @@
+/target
+savegames/*
+!savegames/.gitkeep
