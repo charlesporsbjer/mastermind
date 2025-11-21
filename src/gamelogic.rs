@@ -140,16 +140,6 @@ pub fn check_for_loss(gamestate: &Gamestate) -> bool {
     gamestate.guessed_lines.len() >= gamestate.round_length as usize
 }
 
-pub fn handle_bot_input(bot_ref: &mut Bot, gamestate: &mut Gamestate) {
-    let new_guess = bot_ref.make_educated_guess();
-    let (flags, feedback) = check_for_matches(&gamestate.target_line, &new_guess);
-    bot_ref.current_guess = new_guess.clone();
-    bot_ref.current_feedback = feedback;
-    gamestate.guessed_lines.push(new_guess.clone());
-    gamestate.flag_pegs.push(flags);
-    bot_ref.prune_non_viable_solutions();
-}
-
 // Create clean Gamestate for restarting Solo/PvB
 pub fn create_new_solo_session(gamestate: &Gamestate) -> Gamestate {
     // Target Line for the new session

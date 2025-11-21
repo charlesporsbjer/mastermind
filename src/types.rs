@@ -1,5 +1,7 @@
+/* This file contains all smaller custom datatypes and their implementations */
 use serde::{Deserialize, Serialize};
 
+// Begin Color
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Hash, Serialize, Deserialize)]
 pub enum Color {
     Empty,
@@ -24,8 +26,9 @@ impl Color {
         ];
         colors
     }
-}
+} // End Color
 
+// Begin Peg
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Hash, Serialize, Deserialize)]
 pub struct Peg {
     pub color: Color,
@@ -37,8 +40,9 @@ impl Peg {
             color: Color::Empty,
         }
     }
-}
+} // End Peg
 
+// Begin Line
 #[derive(Clone, PartialEq, Eq, Debug, Hash, Serialize, Deserialize)]
 pub struct Line {
     pub pegs: Vec<Peg>,
@@ -72,8 +76,9 @@ impl std::fmt::Display for Line {
         }
         Ok(())
     }
-}
+} // End Line
 
+// Begin Feedback
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Feedback {
     pub correct_position: u8,
@@ -87,4 +92,4 @@ impl Feedback {
             correct_color: 0,
         }
     }
-}
+} // End Feedback

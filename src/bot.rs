@@ -172,6 +172,29 @@ impl Bot {
     }
 }
 
+pub fn reset_bot_for_new_round(bot: &mut Option<Bot>, gamestate: &Gamestate) {
+    if let Some(b) = bot.as_mut() {
+        b.reset_possible_solutions(gamestate);
+    }
+}
+
+pub fn handle_bot_input(bot_ref: &mut Bot, gamestate: &mut Gamestate) {
+    let new_guess = bot_ref.make_educated_guess();
+    let (flags, feedback) = check_for_matches(&gamestate.target_line, &new_guess);
+    bot_ref.current_guess = new_guess.clone();
+    bot_ref.current_feedback = feedback;
+    gamestate.guess_made = true;
+    gamestate.guessed_lines.push(new_guess.clone());
+    gamestate.flag_pegs.push(flags);
+    bot_ref.prune_non_viable_solutions();
+}
+
+pub fn bot_guess(gamestate: &mut Gamestate, bot: &mut Option<Bot>) {
+    if let Some(bot_ref) = bot.as_mut() {
+        handle_bot_input(bot_ref, gamestate);
+    }
+}
+
 fn num_to_color(n: u8) -> Color {
     match n {
         0 => Color::White,

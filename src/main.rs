@@ -12,12 +12,12 @@ mod twoplayer;
 mod types;
 mod usersetup;
 
-use crate::bot::Bot;
+use crate::bot::{Bot, bot_guess, reset_bot_for_new_round};
 use crate::draw::draw_board;
 use crate::gameconfig::GameConfig;
-use crate::gamelogic::{check_for_loss, check_for_win, create_new_solo_session, handle_bot_input};
-use crate::gamestate::{GameMode, Gamestate};
-use crate::io::{await_input, continue_playing, print_win_or_loss};
+use crate::gamelogic::{check_for_loss, check_for_win, create_new_solo_session};
+use crate::gamestate::{GameMode, Gamestate, RoundStatus};
+use crate::io::{continue_playing, human_guess, print_win_or_loss};
 use crate::startup::handle_startup;
 use crate::twoplayer::handle_two_player_end_of_round;
 use crate::usersetup::{StartupAction, user_setup};
@@ -55,34 +55,25 @@ fn main() {
 
     // MAIN GAME LOOP
     'game_session: loop {
-        let is_current_guesser_bot = match gamestate.game_mode {
-            GameMode::TwoPlayer => false,                 // PvP is always human
-            GameMode::PlayerVsBot => !gamestate.p1s_turn, // Bot plays as P2 (guesses when it's P2's turn)
-            GameMode::SinglePlayer => gamestate.is_bot_only_guesser, // Guided by flag (fixed role)
-            GameMode::SpectateBot => true,
-        };
+        gamestate.is_bot_guessing_this_round = gamestate.is_bot_guessing_this_round();
 
-        if is_current_guesser_bot {
-            if let Some(bot_ref) = bot.as_mut() {
-                handle_bot_input(bot_ref, &mut gamestate);
-            } else {
-                await_input(&mut gamestate); // Fallback if bot wasn't initiated. (Should never happen) REMOVE?
-            }
+        if gamestate.is_bot_guessing_this_round {
+            bot_guess(&mut gamestate, &mut bot);
         } else if !gamestate.round_over {
             // Human is guessing (P1 in PvB, or Solo mode without bot, or TwoPlayer)
-            await_input(&mut gamestate);
+            human_guess(&mut gamestate);
         }
 
         // Check round end conditions.
-        let rounds_used = gamestate.guessed_lines.len();
-        let is_win = check_for_win(&gamestate);
-        let is_loss = check_for_loss(&gamestate);
-        gamestate.round_over = is_win || is_loss;
+        gamestate.current_round = gamestate.guessed_lines.len() as u8;
+        gamestate.update_round_status();
+        gamestate.round_over = (gamestate.round_status == RoundStatus::Win)
+            || (gamestate.round_status == RoundStatus::Loss);
 
         if gamestate.round_over {
             draw_board(&gamestate);
 
-            print_win_or_loss(is_win, rounds_used, gamestate.clone());
+            print_win_or_loss(&gamestate);
 
             if gamestate.game_mode == GameMode::TwoPlayer
                 || gamestate.game_mode == GameMode::PlayerVsBot
@@ -91,9 +82,7 @@ fn main() {
 
                 if handle_two_player_end_of_round(&mut gamestate, &bot) {
                     // Reset Bot's solution set if continuing
-                    if let Some(bot_ref) = bot.as_mut() {
-                        bot_ref.reset_possible_solutions(&gamestate);
-                    }
+                    reset_bot_for_new_round(&mut bot, &gamestate);
                     continue; // Continue to the next round in the session
                 } else {
                     break 'game_session; // Exit the entire application
@@ -105,10 +94,7 @@ fn main() {
             if continue_playing {
                 // Reset the gamestate for a new session
                 gamestate = create_new_solo_session(&gamestate);
-                // Reset Bot's solution set if continuing
-                if let Some(bot_ref) = bot.as_mut() {
-                    bot_ref.reset_possible_solutions(&gamestate);
-                }
+
                 continue 'game_session;
             } else {
                 break 'game_session;

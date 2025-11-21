@@ -1,3 +1,7 @@
+/* This file handles the user's initial setup, where we find out if the user wants to start a new
+ * game or load a game as well as if he wants to use the config file or make a manual setup, it
+ * then sends us where we need to go accordingly */
+
 use crate::gameconfig::GameConfig;
 use crate::manualconfig::get_manual_config;
 use std::io::{self, Write};

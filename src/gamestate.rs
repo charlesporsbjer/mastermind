@@ -1,4 +1,7 @@
-use crate::types::Line;
+use crate::{
+    gamelogic::{check_for_loss, check_for_win},
+    types::Line,
+};
 use serde::{Deserialize, Serialize};
 
 #[derive(PartialEq, Clone, Copy, Serialize, Deserialize)]
@@ -8,13 +11,23 @@ pub enum GameMode {
     PlayerVsBot,
     SpectateBot,
 }
+#[derive(PartialEq, Clone, Copy, Serialize, Deserialize)]
+pub enum RoundStatus {
+    Ongoing,
+    Win,
+    Loss,
+}
 
 #[derive(Clone, Serialize, Deserialize)]
 pub struct Gamestate {
+    // Game Specific
     pub game_mode: GameMode,
     pub round_length: u8,
     pub is_empty_allowed: bool,
     pub pegs_in_a_line: usize,
+    pub is_bot_only_guesser: bool,
+
+    // Round specific
     pub guess_made: bool,
     pub target_line: Line,
     pub guessed_lines: Vec<Line>,
@@ -23,8 +36,9 @@ pub struct Gamestate {
     pub p2_score: u8,
     pub current_round: u8,
     pub p1s_turn: bool, // In 2P: True = P1 is Code Breaker, else P2 is Code Breaker.
+    pub round_status: RoundStatus,
     pub round_over: bool,
-    pub is_bot_only_guesser: bool,
+    pub is_bot_guessing_this_round: bool,
 }
 
 impl Gamestate {
@@ -49,14 +63,15 @@ impl Gamestate {
             p2_score: 0,
             current_round: 1,
             p1s_turn: true,
+            round_status: RoundStatus::Ongoing,
             round_over: false,
             is_bot_only_guesser: is_bot_only_guesser,
+            is_bot_guessing_this_round: false,
         }
     }
 
     pub fn prepare_next_round(&mut self, new_target: Line) {
-        // What is really meant by round?
-        self.guessed_lines.clear(); // Maybe incorrect?
+        self.guessed_lines.clear();
         self.flag_pegs.clear();
         self.target_line = new_target;
         self.guess_made = false;
@@ -64,5 +79,28 @@ impl Gamestate {
 
         // Swap turns
         self.p1s_turn = !self.p1s_turn;
+    }
+
+    pub fn is_bot_guessing_this_round(&self) -> bool {
+        match self.game_mode {
+            GameMode::TwoPlayer => false,
+            GameMode::PlayerVsBot => !self.p1s_turn,
+            GameMode::SinglePlayer => self.is_bot_only_guesser,
+            GameMode::SpectateBot => true,
+        }
+    }
+
+    pub fn update_round_status(&mut self) {
+        self.round_status = self.get_round_status();
+    }
+
+    pub fn get_round_status(&self) -> RoundStatus {
+        if check_for_win(self) {
+            RoundStatus::Win
+        } else if check_for_loss(self) {
+            RoundStatus::Loss
+        } else {
+            RoundStatus::Ongoing
+        }
     }
 }

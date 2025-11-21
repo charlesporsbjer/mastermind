@@ -48,18 +48,18 @@ pub fn continue_playing(gamestate: &Gamestate, bot: &Option<Bot>) -> bool {
     }
 }
 
-pub fn print_win_or_loss(is_win: bool, rounds_used: usize, gamestate: Gamestate) {
-    if is_win {
+pub fn print_win_or_loss(gamestate: &Gamestate) {
+    if gamestate.round_over {
         println!(
             "You won with {} out of {} guesses! Target was solved.",
-            rounds_used, gamestate.round_length
+            gamestate.current_round, gamestate.round_length
         );
     } else {
         print!(
             "You lost! Target not found in {} guesses.\nThe target was: ",
             gamestate.round_length
         );
-        // Just wanna test this print for now.
+        // Just wanna test this print for now. Nevermind it's perfection.
         print_target_line(&gamestate.target_line);
     }
 }
@@ -114,7 +114,7 @@ pub fn parse_guess(guess: &str) -> Color {
     }
 }
 
-pub fn await_input(gamestate: &mut Gamestate) {
+pub fn human_guess(gamestate: &mut Gamestate) {
     print!(
         "Enter {} colors (or 'empty') separated by spaces: ",
         gamestate.pegs_in_a_line
