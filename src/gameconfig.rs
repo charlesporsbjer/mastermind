@@ -1,9 +1,8 @@
 use crate::gamestate::GameMode;
-use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone)]
 pub struct GameConfig {
     pub game_mode: GameMode,
     pub number_of_guesses: u8,

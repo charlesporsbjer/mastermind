@@ -1,4 +1,5 @@
 use crate::gamelogic::check_for_matches;
+use crate::gamestate::Gamestate;
 use crate::types::{Color, Feedback, Line};
 
 use rand::{Rng, rng};
@@ -112,8 +113,9 @@ impl Bot {
         }
     }
 
-    pub fn reset_possible_solutions(&mut self, is_empty_allowed: bool, no_of_pegs: usize) {
-        self.possible_solutions = Self::populate_set_with_solutions(is_empty_allowed, no_of_pegs);
+    pub fn reset_possible_solutions(&mut self, gamestate: &Gamestate) {
+        self.possible_solutions =
+            Self::populate_set_with_solutions(gamestate.is_empty_allowed, gamestate.pegs_in_a_line);
         self.guessed_lines.clear();
         self.current_feedback = Feedback::empty();
         self.is_first_guess = true;

@@ -1,5 +1,5 @@
 game_mode=pvb
-number_of_guesses=2
-pegs_in_a_line=3
+number_of_guesses=1
+pegs_in_a_line=1
 include_empty_pegs=false
 is_bot_guesser=true

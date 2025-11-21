@@ -11,7 +11,7 @@ use crossterm::{
 use std::io::{self, Write, stdout};
 
 pub fn clear_screen() {
-    execute!(stdout(), Clear(ClearType::All)).unwrap();
+    //execute!(stdout(), Clear(ClearType::All)).unwrap();
 }
 
 fn print_target_line(target: &Line) {
@@ -21,7 +21,7 @@ fn print_target_line(target: &Line) {
     print!("\n");
 }
 
-pub fn continue_playing(gameconfig: &GameConfig, gamestate: &Gamestate, bot: &Option<Bot>) -> bool {
+pub fn continue_playing(gamestate: &Gamestate, bot: &Option<Bot>) -> bool {
     loop {
         println!("\nDo you want to continue?");
         println!("\nOptions: (y) Play Next Round | (n) Quit | (s) Save Game");
@@ -39,7 +39,7 @@ pub fn continue_playing(gameconfig: &GameConfig, gamestate: &Gamestate, bot: &Op
                 return false;
             }
             "s" | "save" => {
-                handle_save(gameconfig, gamestate, bot); // Don't return, loop restarts.
+                handle_save(gamestate, bot); // Don't return, loop restarts.
             }
             _ => {
                 println!("Invalid selection. Please type 'y', 'n' or 's'.");

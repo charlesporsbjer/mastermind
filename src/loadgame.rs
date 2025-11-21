@@ -1,16 +1,13 @@
-use crate::bot::Bot;
-use crate::gameconfig::GameConfig;
+use crate::Bot;
 use crate::gamestate::Gamestate;
 use crate::savegame::{SAVE_DIR, SaveData};
-
 use std::fs;
 use std::io;
 use std::io::Write;
 
-pub fn handle_load() -> (GameConfig, Gamestate, Option<Bot>) {
+pub fn handle_load() -> (Gamestate, Option<Bot>) {
     let mut save_name = String::new();
     println!("Type the name of your save to load it.");
-
     println!("Saves: ");
 
     for save in list_save_files() {
@@ -36,7 +33,8 @@ pub fn handle_load() -> (GameConfig, Gamestate, Option<Bot>) {
         println!("No save with name: {}. Try again.", save_input);
     }
     let save_data = load_game(&save_name).unwrap();
-    (save_data.game_config, save_data.gamestate, save_data.bot)
+
+    (save_data.gamestate, save_data.bot)
 }
 
 pub fn load_game(filename: &str) -> io::Result<SaveData> {

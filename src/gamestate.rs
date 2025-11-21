@@ -6,6 +6,7 @@ pub enum GameMode {
     SinglePlayer,
     TwoPlayer,
     PlayerVsBot,
+    SpectateBot,
 }
 
 #[derive(Clone, Serialize, Deserialize)]
@@ -22,6 +23,8 @@ pub struct Gamestate {
     pub p2_score: u8,
     pub current_round: u8,
     pub p1s_turn: bool, // In 2P: True = P1 is Code Breaker, else P2 is Code Breaker.
+    pub round_over: bool,
+    pub is_bot_only_guesser: bool,
 }
 
 impl Gamestate {
@@ -31,6 +34,7 @@ impl Gamestate {
         pegs_in_a_line: usize,
         target_line: Line,
         is_empty_allowed: bool,
+        is_bot_only_guesser: bool,
     ) -> Self {
         Gamestate {
             game_mode: game_mode,
@@ -45,6 +49,8 @@ impl Gamestate {
             p2_score: 0,
             current_round: 1,
             p1s_turn: true,
+            round_over: false,
+            is_bot_only_guesser: is_bot_only_guesser,
         }
     }
 

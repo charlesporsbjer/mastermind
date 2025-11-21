@@ -7,21 +7,19 @@ mod io;
 mod loadgame;
 mod manualconfig;
 mod savegame;
+mod startup;
+mod twoplayer;
 mod types;
 mod usersetup;
 
 use crate::bot::Bot;
 use crate::draw::draw_board;
 use crate::gameconfig::GameConfig;
-use crate::gamelogic::{
-    check_for_loss, check_for_win, create_new_solo_session, get_human_target_line,
-    handle_bot_input, handle_two_player_end_of_round, print_complexity_analysis,
-    randomize_target_line,
-};
+use crate::gamelogic::{check_for_loss, check_for_win, create_new_solo_session, handle_bot_input};
 use crate::gamestate::{GameMode, Gamestate};
 use crate::io::{await_input, continue_playing, print_win_or_loss};
-use crate::loadgame::handle_load;
-use crate::types::Line;
+use crate::startup::handle_startup;
+use crate::twoplayer::handle_two_player_end_of_round;
 use crate::usersetup::{StartupAction, user_setup};
 
 use std::env;
@@ -50,75 +48,27 @@ fn main() {
     unsafe {
         env::set_var("RUST_BACKTRACE", "1");
     }
-
     println!("Mastermind is running!");
 
-    let (config, mut gamestate, mut bot) = match user_setup() {
-        StartupAction::LoadGame => handle_load(),
-        StartupAction::NewGame(cfg) => {
-            let no_of_pegs = cfg.pegs_in_a_line as usize;
-
-            // Setup Bot
-            let needs_bot = cfg.is_bot_guesser || cfg.game_mode == GameMode::PlayerVsBot;
-            let bot = if needs_bot {
-                Some(Bot::new(cfg.is_empty_pegs_allowed, no_of_pegs))
-            } else {
-                None
-            };
-
-            // Setup Target Line
-            let target_line = match cfg.game_mode {
-                GameMode::TwoPlayer => Line::empty(no_of_pegs),
-                GameMode::SinglePlayer | GameMode::PlayerVsBot => {
-                    randomize_target_line(no_of_pegs, cfg.is_empty_pegs_allowed)
-                }
-            };
-
-            // Setup Gamestate
-            let mut gs = Gamestate::new(
-                cfg.game_mode,
-                cfg.number_of_guesses,
-                no_of_pegs,
-                target_line,
-                cfg.is_empty_pegs_allowed,
-            );
-
-            // Handle initial Human Input for PvP
-            if cfg.game_mode == GameMode::TwoPlayer {
-                gs.target_line = get_human_target_line(&mut gs);
-            }
-
-            if cfg.is_bot_guesser && cfg.game_mode == GameMode::SinglePlayer {
-                print_complexity_analysis(no_of_pegs, cfg.is_empty_pegs_allowed);
-            }
-
-            (cfg, gs, bot)
-        }
-    };
-
-    // Initialize game variables using config object
-    let game_mode = config.game_mode;
-    let pegs_in_a_line = config.pegs_in_a_line;
-    let is_empty_pegs_allowed = config.is_empty_pegs_allowed;
-    let is_bot_guesser = config.is_bot_guesser; // Determines guesser in solo mode
-
-    let no_of_pegs = pegs_in_a_line as usize;
+    let startup_action = user_setup();
+    let (mut gamestate, mut bot) = handle_startup(startup_action);
 
     // MAIN GAME LOOP
     'game_session: loop {
-        let current_guesser_is_bot = match game_mode {
+        let is_current_guesser_bot = match gamestate.game_mode {
             GameMode::TwoPlayer => false,                 // PvP is always human
             GameMode::PlayerVsBot => !gamestate.p1s_turn, // Bot plays as P2 (guesses when it's P2's turn)
-            GameMode::SinglePlayer => is_bot_guesser,     // Guided by flag (fixed role)
+            GameMode::SinglePlayer => gamestate.is_bot_only_guesser, // Guided by flag (fixed role)
+            GameMode::SpectateBot => true,
         };
 
-        if current_guesser_is_bot {
+        if is_current_guesser_bot {
             if let Some(bot_ref) = bot.as_mut() {
                 handle_bot_input(bot_ref, &mut gamestate);
             } else {
                 await_input(&mut gamestate); // Fallback if bot wasn't initiated. (Should never happen) REMOVE?
             }
-        } else {
+        } else if !gamestate.round_over {
             // Human is guessing (P1 in PvB, or Solo mode without bot, or TwoPlayer)
             await_input(&mut gamestate);
         }
@@ -127,25 +77,22 @@ fn main() {
         let rounds_used = gamestate.guessed_lines.len();
         let is_win = check_for_win(&gamestate);
         let is_loss = check_for_loss(&gamestate);
-        let round_over = is_win || is_loss;
+        gamestate.round_over = is_win || is_loss;
 
-        if round_over {
+        if gamestate.round_over {
             draw_board(&gamestate);
 
             print_win_or_loss(is_win, rounds_used, gamestate.clone());
 
-            if game_mode == GameMode::TwoPlayer || game_mode == GameMode::PlayerVsBot {
+            if gamestate.game_mode == GameMode::TwoPlayer
+                || gamestate.game_mode == GameMode::PlayerVsBot
+            {
                 // Both PvP and PvB use the same end-of-round logic (scoring, swapping, input)
 
-                if handle_two_player_end_of_round(
-                    &config,
-                    &mut gamestate,
-                    &bot,
-                    is_empty_pegs_allowed,
-                ) {
+                if handle_two_player_end_of_round(&mut gamestate, &bot) {
                     // Reset Bot's solution set if continuing
                     if let Some(bot_ref) = bot.as_mut() {
-                        bot_ref.reset_possible_solutions(is_empty_pegs_allowed, no_of_pegs);
+                        bot_ref.reset_possible_solutions(&gamestate);
                     }
                     continue; // Continue to the next round in the session
                 } else {
@@ -153,20 +100,19 @@ fn main() {
                 }
             }
 
-            let continue_playing = continue_playing(&config, &gamestate, &bot);
+            let continue_playing = continue_playing(&gamestate, &bot);
 
             if continue_playing {
                 // Reset the gamestate for a new session
-                gamestate = create_new_solo_session(game_mode, &config);
+                gamestate = create_new_solo_session(&gamestate);
                 // Reset Bot's solution set if continuing
                 if let Some(bot_ref) = bot.as_mut() {
-                    bot_ref.reset_possible_solutions(is_empty_pegs_allowed, no_of_pegs);
+                    bot_ref.reset_possible_solutions(&gamestate);
                 }
                 continue 'game_session;
             } else {
                 break 'game_session;
             }
         }
-        draw_board(&gamestate);
     }
 }

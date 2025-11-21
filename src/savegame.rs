@@ -1,5 +1,4 @@
 use crate::bot::Bot;
-use crate::gameconfig::GameConfig;
 use crate::gamestate::Gamestate;
 
 use ::std::fs;
@@ -12,7 +11,6 @@ pub const SAVE_DIR: &str = "savegames";
 // Wraps all data to reconstruct game.
 #[derive(Serialize, Deserialize)]
 pub struct SaveData {
-    pub game_config: GameConfig,
     pub gamestate: Gamestate,
     pub bot: Option<Bot>,
 }
@@ -26,7 +24,7 @@ pub fn init_save_sys() {
     }
 }
 
-pub fn handle_save(gameconfig: &GameConfig, gamestate: &Gamestate, bot: &Option<Bot>) {
+pub fn handle_save(gamestate: &Gamestate, bot: &Option<Bot>) {
     loop {
         print!("Enter save name (or type 'cancel' to go back): ");
         io::stdout().flush().unwrap();
@@ -47,7 +45,7 @@ pub fn handle_save(gameconfig: &GameConfig, gamestate: &Gamestate, bot: &Option<
         }
 
         // Attempt Save
-        match save_game(name, gameconfig, gamestate, bot) {
+        match save_game(name, gamestate, bot) {
             Ok(_) => {
                 println!("Game saved successfully to {}/{}.sjon", SAVE_DIR, name);
                 break;
@@ -59,16 +57,10 @@ pub fn handle_save(gameconfig: &GameConfig, gamestate: &Gamestate, bot: &Option<
     }
 }
 
-pub fn save_game(
-    filename: &str,
-    game_config: &GameConfig,
-    gamestate: &Gamestate,
-    bot: &Option<Bot>,
-) -> io::Result<()> {
+pub fn save_game(filename: &str, gamestate: &Gamestate, bot: &Option<Bot>) -> io::Result<()> {
     init_save_sys();
 
     let save_data = SaveData {
-        game_config: game_config.clone(),
         gamestate: gamestate.clone(), // Clone needed to own data for serialzation.
         bot: bot.clone(),             // Might be slow if bot is huge, with HashSet.
     };

@@ -1,7 +1,6 @@
 use crate::gamestate::Gamestate;
-use crate::io::{continue_playing, get_validated_line_input};
 use crate::types::{Color, Feedback, Line};
-use crate::{Bot, GameConfig, GameMode};
+use crate::{Bot, GameMode};
 
 use rand::Rng;
 
@@ -103,40 +102,6 @@ fn format_number(n: u128) -> String {
     result.chars().rev().collect()
 }
 
-pub fn get_human_target_line(gamestate: &Gamestate) -> Line {
-    let (maker, breaker) = match gamestate.game_mode {
-        GameMode::TwoPlayer => {
-            // P1 is breaker when p1s_turn is true, P2 is breaker when p1s_turn is false
-            if gamestate.p1s_turn {
-                ("PLAYER 2", "PLAYER 1")
-            } else {
-                ("PLAYER 1", "PLAYER 2")
-            }
-        }
-        GameMode::PlayerVsBot => {
-            // P1 is Maker (Human) only when P2 (Bot) is the Breaker.
-            // This function is only called when the human (P1) is the Maker.
-            ("PLAYER 1", "BOT")
-        }
-        _ => panic!("get_human_target_line called in inappropriate mode"),
-    };
-
-    println!("\n\n\n========================================");
-    println!("{} (Code Maker): Please enter the secret code.", maker);
-    println!("{}: LOOK AWAY!", breaker);
-    println!("========================================\n");
-    print!("ENTER {} COLORS: ", gamestate.pegs_in_a_line);
-
-    // Former function clears screen
-    let line = get_validated_line_input(gamestate.pegs_in_a_line, gamestate.is_empty_allowed);
-
-    println!(
-        "Code set! Scroll up strictly forbidden. Passing to Code Breaker ({})",
-        breaker
-    );
-    line
-}
-
 pub fn randomize_target_line(pegs_in_a_line: usize, is_empty_pegs_allowed: bool) -> Line {
     let mut rng = rand::rng();
     let mut line = Line::empty(pegs_in_a_line);
@@ -186,126 +151,24 @@ pub fn handle_bot_input(bot_ref: &mut Bot, gamestate: &mut Gamestate) {
 }
 
 // Create clean Gamestate for restarting Solo/PvB
-pub fn create_new_solo_session(mode: GameMode, config: &GameConfig) -> Gamestate {
-    let no_of_pegs = config.pegs_in_a_line as usize;
-
+pub fn create_new_solo_session(gamestate: &Gamestate) -> Gamestate {
     // Target Line for the new session
-    let target_line = match mode {
-        GameMode::SinglePlayer => randomize_target_line(no_of_pegs, config.is_empty_pegs_allowed),
-        GameMode::PlayerVsBot => Line::empty(no_of_pegs),
+    let target_line = match gamestate.game_mode {
+        GameMode::SinglePlayer => {
+            randomize_target_line(gamestate.pegs_in_a_line, gamestate.is_empty_allowed)
+        }
+        GameMode::PlayerVsBot => Line::empty(gamestate.pegs_in_a_line),
         _ => panic!("create_new_solo_session called in inappropriate mode"),
     };
 
-    let mut new_gamestate = Gamestate::new(
-        mode,
-        config.number_of_guesses,
-        no_of_pegs,
+    let new_gamestate = Gamestate::new(
+        gamestate.game_mode,
+        gamestate.round_length,
+        gamestate.pegs_in_a_line,
         target_line,
-        config.is_empty_pegs_allowed,
+        gamestate.is_empty_allowed,
+        gamestate.is_bot_only_guesser,
     );
-
-    // If PvB, get new code from the human before loop starts
-    if mode == GameMode::PlayerVsBot {
-        new_gamestate.target_line = get_human_target_line(&new_gamestate);
-    }
 
     new_gamestate
-}
-
-fn get_player_strings(gamestate: &Gamestate) -> (&'static str, &'static str) {
-    let p2_bot_string = "BOT";
-    let is_p2_a_bot = gamestate.game_mode == GameMode::PlayerVsBot;
-
-    // Logic to determine Maker vs Breaker
-    // If p1s_turn is TRUE, it means P1 is currently guessing (Breaker)
-    if gamestate.p1s_turn {
-        let breaker = "Player 1";
-        let maker = if is_p2_a_bot {
-            p2_bot_string
-        } else {
-            "Player 2"
-        };
-        (maker, breaker)
-    } else {
-        // P2 is guessing (Breaker)
-        let breaker = if is_p2_a_bot {
-            p2_bot_string
-        } else {
-            "Player 2"
-        };
-        let maker = "Player 1";
-        (maker, breaker)
-    }
-}
-
-pub fn handle_two_player_end_of_round(
-    gameconfig: &GameConfig,
-    gamestate: &mut Gamestate,
-    bot: &Option<Bot>,
-    is_empty_pegs_allowed: bool,
-) -> bool {
-    let (maker, breaker) = get_player_strings(gamestate);
-
-    let guesses_used = gamestate.guessed_lines.len() as u8;
-    let is_win = check_for_win(gamestate);
-
-    let bonus = if !is_win { 1 } else { 0 };
-    let score_delta = guesses_used + bonus;
-
-    // Update Maker's score
-    if gamestate.p1s_turn {
-        gamestate.p2_score += score_delta;
-    } else {
-        gamestate.p1_score += score_delta;
-    }
-
-    let win_or_loss_str = if is_win { "solved" } else { "didn't solve" };
-    let bonus_str = if bonus != 0 {
-        format!(" + {} bonus", bonus)
-    } else {
-        "".to_string()
-    };
-    let p2_string = if gameconfig.game_mode == GameMode::PlayerVsBot {
-        "BOT"
-    } else {
-        "P2"
-    };
-
-    println!("\n--- ROUND {} ENDED ---", gamestate.current_round);
-    println!(
-        "{} {} the code in {} guesses.",
-        breaker, win_or_loss_str, guesses_used
-    );
-    println!(
-        "{} (Code Maker) gains {}{} points.",
-        maker, guesses_used, bonus_str
-    );
-    println!(
-        "--- SCOREBOARD: P1: {} | {}: {}",
-        gamestate.p1_score, p2_string, gamestate.p2_score
-    );
-
-    // Ask if players want to continue
-    let continue_playing = continue_playing(gameconfig, gamestate, bot);
-
-    if continue_playing {
-        // Prepare for next round (clears board, swaps p1s_turn)
-        gamestate.prepare_next_round(Line::empty(gamestate.pegs_in_a_line));
-
-        // After prepare_next_round, roles have swapped:
-        // If P1 is now the Breaker (p1s_turn=true), P2 is the Maker.
-        let next_breaker_is_bot =
-            gamestate.game_mode == GameMode::PlayerVsBot && !gamestate.p1s_turn;
-
-        let target_line = if next_breaker_is_bot {
-            // PvB where P2 (Bot) is about to guess so player sets target.
-            get_human_target_line(gamestate)
-        } else {
-            // PvB where P1 (Human) is about to guess so bot sets target.
-            randomize_target_line(gamestate.pegs_in_a_line, is_empty_pegs_allowed)
-        };
-
-        gamestate.target_line = target_line;
-    }
-    continue_playing
 }

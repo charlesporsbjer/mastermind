@@ -49,4 +49,3 @@ pub fn user_setup() -> StartupAction {
     }
     StartupAction::NewGame(get_manual_config())
 }
-
