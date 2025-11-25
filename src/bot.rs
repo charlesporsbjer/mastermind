@@ -1,11 +1,39 @@
-use crate::gamelogic::check_for_matches;
-use crate::types::{Color, Feedback, Line};
+/*
+    Bot module.
+
+    Provides the Bot type and the public functions used by the game loop to make
+    the bot perform guesses and reset between rounds.
+
+    Responsibilities:
+    - Holding all internal bot state (possible solutions, guesses, feedback).
+    - Computing valid solution space and reducing it after each guess.
+    - Producing first guesses and educated guesses using a minimax-style strategy.
+    - Integrating bot behavior into the main game loop.
+
+    Public API:
+    - Bot::new: construct a new bot for a given game configuration.
+    - reset_bot_for_new_round: clear bot state at the start of a new round.
+    - handle_bot_input: make a single bot guess and update the game state.
+    - bot_guess: convenience wrapper for triggering one bot action.
+
+    Internal logic (private):
+    - populate_set_with_solutions, generate_recursive: build the full search space.
+    - make_first_guess, make_educated_guess: determine guessing strategy.
+    - prune_non_viable_solutions: remove impossible lines after feedback.
+    - reset_possible_solutions: rebuild full state for a new round.
+    - num_to_color: map numeric identifiers to Color.
+*/
+
+use crate::{
+    gamelogic::check_for_matches,
+    gamestate::Gamestate,
+    types::{Color, Feedback, Line},
+};
 
 use rand::{Rng, rng};
-use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
-#[derive(Clone, Serialize, Deserialize)]
+#[derive(Clone)]
 pub struct Bot {
     pub possible_solutions: HashSet<Line>,
     pub available_colors: Vec<Color>,
@@ -71,7 +99,7 @@ impl Bot {
         }
     }
 
-    pub fn make_first_guess(&mut self) -> Line {
+    fn make_first_guess(&mut self) -> Line {
         let mut rng = rng();
         let n = self.available_colors.len();
 
@@ -97,7 +125,7 @@ impl Bot {
         Line::new(colors)
     }
 
-    pub fn prune_non_viable_solutions(&mut self) {
+    fn prune_non_viable_solutions(&mut self) {
         if !self.is_first_guess {
             // Only retain lines that give the same feedback as self.current_feedback
             // retain calls the closure for all elements
@@ -112,14 +140,15 @@ impl Bot {
         }
     }
 
-    pub fn reset_possible_solutions(&mut self, is_empty_allowed: bool, no_of_pegs: usize) {
-        self.possible_solutions = Self::populate_set_with_solutions(is_empty_allowed, no_of_pegs);
+    fn reset_possible_solutions(&mut self, gamestate: &Gamestate) {
+        self.possible_solutions =
+            Self::populate_set_with_solutions(gamestate.is_empty_allowed, gamestate.pegs_in_a_line);
         self.guessed_lines.clear();
         self.current_feedback = Feedback::empty();
         self.is_first_guess = true;
     }
 
-    pub fn make_educated_guess(&mut self) -> Line {
+    fn make_educated_guess(&mut self) -> Line {
         // Just make a starting guess if is_first_guess
         if self.is_first_guess {
             self.is_first_guess = false;
@@ -167,6 +196,28 @@ impl Bot {
 
         self.guessed_lines.push(final_guess.clone());
         final_guess
+    }
+}
+
+pub fn reset_bot_for_new_round(bot: &mut Option<Bot>, gamestate: &Gamestate) {
+    if let Some(b) = bot.as_mut() {
+        b.reset_possible_solutions(gamestate);
+    }
+}
+
+pub fn handle_bot_input(bot_ref: &mut Bot, gamestate: &mut Gamestate) {
+    let new_guess = bot_ref.make_educated_guess();
+    let (flags, feedback) = check_for_matches(&gamestate.target_line, &new_guess);
+    bot_ref.current_guess = new_guess.clone();
+    bot_ref.current_feedback = feedback;
+    gamestate.guessed_lines.push(new_guess.clone());
+    gamestate.flag_pegs.push(flags);
+    bot_ref.prune_non_viable_solutions();
+}
+
+pub fn bot_guess(gamestate: &mut Gamestate, bot: &mut Option<Bot>) {
+    if let Some(bot_ref) = bot.as_mut() {
+        handle_bot_input(bot_ref, gamestate);
     }
 }
 

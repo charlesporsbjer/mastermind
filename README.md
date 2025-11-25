@@ -6,28 +6,30 @@ Fully playable, with multiple modes, bot logic, saving/loading, and console grap
 ## Features
 
 ### Game Modes
-- Player vs Player  
-- Player vs Bot  
-- Solo  
-- Spectate Bot
+- Player vs Player – Two humans take turns as Code Maker and Code Breaker
+- Player vs Bot – Play against an AI bot
+- Solo / Practice – Solve codes on your own
+- Spectate Bot – Watch the bot play against itself
 
 ### Bot
 - Uses an *imperfect* version of **Knuth’s Mastermind algorithm**  
-- Simulates all possible outcomes  
+- Simulates all possible outcomes to make the "best" guess.
 - Solves the code in **≤6 guesses reliably**  
 - Stays consistent even with large peg counts  
 - First guess has a random element
 
 ### Saving & Loading
+- Autosave after every round
 - Save / Continue / Quit after every round  
 - Choose New Game or Load Game on startup
+- Save files stored in savegames/ directory
 
 ### Setup Options
 - Configure via **config file**  
-- Configure **in-game**
+- Configure manually in-game if no config is found or user chooses manual setup
 
 ### Core Rules
-- 6 peg colors  
+- Colors: 6 standard colors (White, Black, Red, Green, Blue, Yellow), plus optional Empty
 - Breaker: guess the hidden code  
 - Maker: set the hidden code
 
@@ -38,10 +40,12 @@ Fully playable, with multiple modes, bot logic, saving/loading, and console grap
 
 ### Graphics
 - Console board drawn dynamically
+- Displays guesses, feedback, and legend for colors
 
 ### Input / Output
-- Robust invalid-input handling  
+- Validates input robustly
 - Clear and helpful user guidance
+- Hides code input in Two-Player mode when necessary
 
 ### Bonus
 - Estimates how long the bot will take to break the code in Spectate Bot mode
@@ -50,14 +54,8 @@ Fully playable, with multiple modes, bot logic, saving/loading, and console grap
 
 ## Coming Features
 - `--help` command  
-- Cleaner and prettier console output  
-- Hide Maker’s code from the Breaker  
 - Store bot simulations using integers instead of HashSets (better memory usage)  
 - More peg colors  
 - Switch to a graphics library  
-- General code cleanup  
 - Binary releases
-
-## Known Bugs
-- Some data is skewed when loading a saved game
 

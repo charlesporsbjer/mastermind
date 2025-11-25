@@ -1,5 +1,41 @@
+/*
+    Core datatypes module.
+
+    Defines all widely used custom types for the game, including colors,
+    pegs, lines, game modes, and feedback structures.
+
+    Public API:
+    - GameMode: enumerates possible game modes (Practice, TwoPlayer, PlayerVsBot, SpectateBot).
+    - Color: enumerates possible peg colors including Empty.
+        - Color::all_colors: returns a Vec of all colors.
+    - Peg: represents a single peg with a color.
+        - Peg::new: creates a peg with Color::Empty.
+    - Line: represents a sequence of pegs (a full guess or target).
+        - Line::empty(width): creates a line of empty pegs.
+        - Line::new(colors): creates a line from a vector of colors.
+        - Implements Display for human-readable printing.
+    - Feedback: represents the result of comparing a guess to a target.
+        - Feedback::empty: creates a feedback with zero correct positions/colors.
+
+    Notes:
+    - All types derive traits to support cloning, comparison, hashing, serialization,
+      and debugging.
+    - Color, Peg, Line, and Feedback are designed to integrate seamlessly with
+      the game logic and bot computations.
+*/
+
 use serde::{Deserialize, Serialize};
 
+// Begin GameMode
+#[derive(PartialEq, Clone, Copy, Serialize, Deserialize)]
+pub enum GameMode {
+    Practice,
+    TwoPlayer,
+    PlayerVsBot,
+    SpectateBot,
+} // End GameMode
+
+// Begin Color
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Hash, Serialize, Deserialize)]
 pub enum Color {
     Empty,
@@ -24,8 +60,9 @@ impl Color {
         ];
         colors
     }
-}
+} // End Color
 
+// Begin Peg
 #[derive(Copy, Clone, PartialEq, Eq, Debug, Hash, Serialize, Deserialize)]
 pub struct Peg {
     pub color: Color,
@@ -37,8 +74,9 @@ impl Peg {
             color: Color::Empty,
         }
     }
-}
+} // End Peg
 
+// Begin Line
 #[derive(Clone, PartialEq, Eq, Debug, Hash, Serialize, Deserialize)]
 pub struct Line {
     pub pegs: Vec<Peg>,
@@ -72,8 +110,9 @@ impl std::fmt::Display for Line {
         }
         Ok(())
     }
-}
+} // End Line
 
+// Begin Feedback
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct Feedback {
     pub correct_position: u8,
@@ -87,4 +126,4 @@ impl Feedback {
             correct_color: 0,
         }
     }
-}
+} // End Feedback

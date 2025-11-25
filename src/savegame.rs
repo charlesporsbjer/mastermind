@@ -1,24 +1,34 @@
-use crate::bot::Bot;
-use crate::gameconfig::GameConfig;
+/*
+    Save game module.
+
+    Handles saving and autosaving of game state to the filesystem.
+
+    Public API:
+    - autosave: saves the current Gamestate to a temporary "autosave.json" file.
+    - handle_save_from_autosave: prompts the user to provide a filename and
+      copies the autosave to a permanent save file.
+
+    Internal helpers / private items:
+    - init_save_sys: ensures the save directory exists, creates it if missing.
+    - rename_autosave: copies/renames the autosave file to a user-specified filename.
+
+    Notes:
+    - All saves are stored in the "savegames" directory.
+    - Filenames are normalized to avoid ".json" duplication.
+    - handle_save_from_autosave allows the user to cancel or retry on errors.
+    - Uses serde_json for serializing Gamestate to JSON.
+*/
+
 use crate::gamestate::Gamestate;
 
 use ::std::fs;
-use serde::{Deserialize, Serialize};
 use std::io::{self, Write};
 use std::path::Path;
 
 pub const SAVE_DIR: &str = "savegames";
 
-// Wraps all data to reconstruct game.
-#[derive(Serialize, Deserialize)]
-pub struct SaveData {
-    pub game_config: GameConfig,
-    pub gamestate: Gamestate,
-    pub bot: Option<Bot>,
-}
-
 // Ensure save dir exists
-pub fn init_save_sys() {
+fn init_save_sys() {
     if !Path::new(SAVE_DIR).exists() {
         if let Err(e) = fs::create_dir(SAVE_DIR) {
             eprintln!("Failed to create save directory: {}", e);
@@ -26,7 +36,28 @@ pub fn init_save_sys() {
     }
 }
 
-pub fn handle_save(gameconfig: &GameConfig, gamestate: &Gamestate, bot: &Option<Bot>) {
+pub fn autosave(gamestate: &mut Gamestate) -> io::Result<()> {
+    init_save_sys();
+    let save_data = gamestate.clone();
+
+    let json_string = serde_json::to_string_pretty(&save_data)?;
+    let path = format!("{}/autosave.json", SAVE_DIR);
+
+    fs::write(path, json_string)
+}
+
+fn rename_autosave(new_name: &str) -> io::Result<()> {
+    init_save_sys();
+
+    let src = format!("{}/autosave.json", SAVE_DIR);
+    let dest = format!("{}/{}.json", SAVE_DIR, new_name.replace(".json", ""));
+
+    fs::copy(&src, dest)?;
+
+    Ok(())
+}
+
+pub fn handle_save_from_autosave() {
     loop {
         print!("Enter save name (or type 'cancel' to go back): ");
         io::stdout().flush().unwrap();
@@ -47,7 +78,7 @@ pub fn handle_save(gameconfig: &GameConfig, gamestate: &Gamestate, bot: &Option<
         }
 
         // Attempt Save
-        match save_game(name, gameconfig, gamestate, bot) {
+        match rename_autosave(name) {
             Ok(_) => {
                 println!("Game saved successfully to {}/{}.sjon", SAVE_DIR, name);
                 break;
@@ -57,29 +88,4 @@ pub fn handle_save(gameconfig: &GameConfig, gamestate: &Gamestate, bot: &Option<
             }
         }
     }
-}
-
-pub fn save_game(
-    filename: &str,
-    game_config: &GameConfig,
-    gamestate: &Gamestate,
-    bot: &Option<Bot>,
-) -> io::Result<()> {
-    init_save_sys();
-
-    let save_data = SaveData {
-        game_config: game_config.clone(),
-        gamestate: gamestate.clone(), // Clone needed to own data for serialzation.
-        bot: bot.clone(),             // Might be slow if bot is huge, with HashSet.
-    };
-
-    // Serialize to pretty printed JSON string.
-    let json_string = serde_json::to_string_pretty(&save_data)?;
-
-    // Esnure filename has .json extension.
-    let path = format!("{}/{}.json", SAVE_DIR, filename.replace(".json", ""));
-
-    fs::write(path, json_string)?;
-
-    Ok(())
 }

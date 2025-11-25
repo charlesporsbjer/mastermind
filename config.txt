@@ -1,5 +1,30 @@
+# Game Configuration File
+# -----------------------
+# This file is used to set up the game parameters before starting.
+# Lines starting with '#' are ignored (comments).
+# Format: key=value
+# If a key is missing or invalid, default values will be used.
+
+# --- Game Mode ---
+# Options:
+#   practice        - Solo mode where you try to guess the code.
+#   two_player      - Two human players alternate as code maker and code breaker.
+#   pvb / player_vs_bot - Player vs AI bot mode.
+#   spectate_bot    - Watch the bot play against itself.
 game_mode=pvb
-number_of_guesses=2
-pegs_in_a_line=3
+
+# --- Number of Guesses ---
+# The maximum number of guesses allowed per round.
+# Must be a positive integer (1-255). Base Rules: 10.
+number_of_guesses=1
+
+# --- Pegs in a Line ---
+# How many pegs/colors each code line will contain.
+# Must be a positive integer (1-255). Base rules: 4.
+pegs_in_a_line=1
+
+# --- Include Empty Pegs ---
+# Whether "empty" pegs are allowed as part of the code.
+# Options: true / false
 include_empty_pegs=false
-is_bot_guesser=true
+
