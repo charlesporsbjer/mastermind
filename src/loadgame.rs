@@ -1,11 +1,30 @@
-use crate::Bot;
-use crate::gamestate::Gamestate;
-use crate::savegame::{SAVE_DIR, SaveData};
+/*
+    Loading module.
+
+    Handles reading saved game data from disk and reconstructing the Gamestate.
+
+    Public API:
+    - handle_load: prompts the user to select a save file from the save directory,
+      loads it, and returns a fully populated Gamestate.
+
+    Internal helpers / private items:
+    - load_game: reads a JSON file and deserializes it into a Gamestate.
+    - list_save_files: scans the save directory for valid JSON save files.
+
+    Notes:
+    - Save files are expected to be stored as JSON in the SAVE_DIR directory.
+    - Filenames are matched without the ".json" extension.
+    - User input is validated against existing save files; the prompt loops until
+      a valid save is chosen.
+*/
+
+use crate::{gamestate::Gamestate, savegame::SAVE_DIR};
+
 use std::fs;
 use std::io;
 use std::io::Write;
 
-pub fn handle_load() -> (Gamestate, Option<Bot>) {
+pub fn handle_load() -> Gamestate {
     let mut save_name = String::new();
     println!("Type the name of your save to load it.");
     println!("Saves: ");
@@ -32,21 +51,21 @@ pub fn handle_load() -> (Gamestate, Option<Bot>) {
         }
         println!("No save with name: {}. Try again.", save_input);
     }
-    let save_data = load_game(&save_name).unwrap();
+    let saved_gs = load_game(&save_name).unwrap();
 
-    (save_data.gamestate, save_data.bot)
+    saved_gs
 }
 
-pub fn load_game(filename: &str) -> io::Result<SaveData> {
+fn load_game(filename: &str) -> io::Result<Gamestate> {
     let path = format!("{}/{}.json", SAVE_DIR, filename.replace(".json", ""));
 
     let content = fs::read_to_string(path)?;
-    let data: SaveData = serde_json::from_str(&content)?;
+    let data: Gamestate = serde_json::from_str(&content)?;
 
     Ok(data)
 }
 
-pub fn list_save_files() -> Vec<String> {
+fn list_save_files() -> Vec<String> {
     let mut saves = Vec::new();
 
     if let Ok(entries) = fs::read_dir(SAVE_DIR) {

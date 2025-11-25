@@ -1,8 +1,14 @@
-use crate::gamestate::Gamestate;
-use crate::types::{Color, Feedback, Line};
-use crate::{Bot, GameMode};
+/* This file contains the game logic functions */
 
-use rand::Rng;
+use crate::{
+    bot::{Bot, reset_bot_for_new_round},
+    gamestate::Gamestate,
+    parse::{continue_playing, get_validated_line_input},
+    prints::print_win_or_loss,
+    savegame::autosave,
+    twoplayer::{get_human_target_line, two_player_end_of_round_score_and_prints},
+    types::{Color, Feedback, GameMode, Line},
+};
 
 pub fn check_for_matches(target: &Line, guess: &Line) -> (Line, Feedback) {
     let width = target.pegs.len();
@@ -37,6 +43,24 @@ pub fn check_for_matches(target: &Line, guess: &Line) -> (Line, Feedback) {
         }
     }
     (flags, feedback)
+}
+
+pub fn human_guess(gamestate: &mut Gamestate) {
+    print!(
+        "Enter {} colors (or 'empty') separated by spaces: ",
+        gamestate.pegs_in_a_line
+    );
+
+    // Get validated guess line
+    let line = get_validated_line_input(&gamestate);
+
+    // Update Gamestate
+    gamestate.guessed_lines.push(line);
+    let (flags, _) = check_for_matches(
+        &gamestate.target_line,
+        gamestate.guessed_lines.last().unwrap(),
+    );
+    gamestate.flag_pegs.push(flags);
 }
 
 pub fn print_complexity_analysis(pegs: usize, allow_empty: bool) {
@@ -102,63 +126,83 @@ fn format_number(n: u128) -> String {
     result.chars().rev().collect()
 }
 
-pub fn randomize_target_line(pegs_in_a_line: usize, is_empty_pegs_allowed: bool) -> Line {
-    let mut rng = rand::rng();
-    let mut line = Line::empty(pegs_in_a_line);
+pub enum LoopAction {
+    Continue,
+    Break,
+}
 
-    for i in 0..pegs_in_a_line {
-        let color = if is_empty_pegs_allowed {
-            match rng.random_range(0..7) {
-                0 => Color::White,
-                1 => Color::Black,
-                2 => Color::Red,
-                3 => Color::Green,
-                4 => Color::Blue,
-                5 => Color::Yellow,
-                _ => Color::Empty,
-            }
-        } else {
-            match rng.random_range(0..6) {
-                0 => Color::White,
-                1 => Color::Black,
-                2 => Color::Red,
-                3 => Color::Green,
-                4 => Color::Blue,
-                _ => Color::Yellow,
-            }
-        };
-        line.pegs[i].color = color;
+enum TargetProvider {
+    Human,
+    Bot,
+}
+
+pub struct RoundResult {
+    pub guesses_used: u8,
+    pub is_win: bool,
+    pub bonus: u8,
+    pub score_delta: u8,
+}
+
+pub fn calculate_round_result(gamestate: &Gamestate) -> RoundResult {
+    let guesses_used = gamestate.guessed_lines.len() as u8;
+    let is_win = gamestate.check_for_win();
+    let bonus = if !is_win { 1 } else { 0 };
+
+    RoundResult {
+        guesses_used,
+        is_win,
+        bonus,
+        score_delta: guesses_used + bonus,
     }
-    line
 }
 
-pub fn check_for_win(gamestate: &Gamestate) -> bool {
-    gamestate.guessed_lines.contains(&gamestate.target_line)
-}
+pub fn handle_end_of_round(gamestate: &mut Gamestate, bot: &mut Option<Bot>) -> LoopAction {
+    autosave(gamestate).ok();
 
-pub fn check_for_loss(gamestate: &Gamestate) -> bool {
-    gamestate.guessed_lines.len() >= gamestate.round_length as usize
-}
+    let round_result = calculate_round_result(gamestate);
 
-// Create clean Gamestate for restarting Solo/PvB
-pub fn create_new_solo_session(gamestate: &Gamestate) -> Gamestate {
-    // Target Line for the new session
-    let target_line = match gamestate.game_mode {
-        GameMode::SinglePlayer => {
-            randomize_target_line(gamestate.pegs_in_a_line, gamestate.is_empty_allowed)
+    gamestate.reset_round_statuses();
+
+    print_win_or_loss(&gamestate, &round_result);
+
+    match gamestate.game_mode {
+        GameMode::TwoPlayer | GameMode::PlayerVsBot => {
+            two_player_end_of_round_score_and_prints(gamestate, &round_result);
         }
-        GameMode::PlayerVsBot => Line::empty(gamestate.pegs_in_a_line),
-        _ => panic!("create_new_solo_session called in inappropriate mode"),
-    };
+        _ => {}
+    }
 
-    let new_gamestate = Gamestate::new(
-        gamestate.game_mode,
-        gamestate.round_length,
-        gamestate.pegs_in_a_line,
-        target_line,
-        gamestate.is_empty_allowed,
-        gamestate.is_bot_only_guesser,
-    );
+    if !continue_playing() {
+        return LoopAction::Break;
+    }
 
-    new_gamestate
+    gamestate.prepare_next_round();
+
+    match who_picks_target(gamestate) {
+        TargetProvider::Human => {
+            gamestate.target_line = get_human_target_line(gamestate);
+        }
+        TargetProvider::Bot => {
+            gamestate.target_line = gamestate.randomize_target_line();
+        }
+    }
+
+    reset_bot_for_new_round(bot, gamestate);
+
+    LoopAction::Continue
+}
+
+fn who_picks_target(gamestate: &Gamestate) -> TargetProvider {
+    match gamestate.game_mode {
+        GameMode::TwoPlayer => TargetProvider::Human,
+        GameMode::PlayerVsBot => {
+            if gamestate.p1s_turn {
+                TargetProvider::Bot
+            } else {
+                TargetProvider::Human
+            }
+        }
+        GameMode::Practice => TargetProvider::Bot,
+        GameMode::SpectateBot => TargetProvider::Bot,
+    }
 }

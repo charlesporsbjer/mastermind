@@ -1,6 +1,28 @@
-use crate::gamestate::Gamestate;
-use crate::io::clear_screen;
-use crate::types::{Color, Line};
+/*
+    Rendering module.
+
+    Provides all logic for drawing the game board to the terminal. This includes
+    computing layout widths, rendering borders, centering content, printing the
+    legend, and drawing guesses and hit markers using ANSI colors.
+
+    Public API:
+    - draw_board: clears the screen and renders the full board given a Gamestate.
+
+    Internal helpers (private):
+    - format_line: converts a Line into a spaced string of colored symbols.
+    - colored_symbol: maps a Color to its terminal-colored "●" representation.
+
+    Notes:
+    - The output uses the `colored` crate for styling.
+    - Spacing and padding are computed dynamically based on the number of pegs.
+    - No game logic is handled here; this module is purely presentation.
+*/
+
+use crate::{
+    gamestate::Gamestate,
+    parse::clear_screen,
+    types::{Color, Line},
+};
 
 use colored::{ColoredString, Colorize};
 

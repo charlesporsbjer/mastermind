@@ -1,9 +1,23 @@
-/* This file handles the user's initial setup, where we find out if the user wants to start a new
- * game or load a game as well as if he wants to use the config file or make a manual setup, it
- * then sends us where we need to go accordingly */
+/*
+    Startup module.
 
-use crate::gameconfig::GameConfig;
-use crate::manualconfig::get_manual_config;
+    Handles the user's initial setup, determining whether to start a new game
+    or load an existing one, and whether to use a config file or manual settings.
+
+    Public API:
+    - StartupAction: enum representing the user's choice:
+        - NewGame(GameConfig): start a new game with the specified configuration.
+        - LoadGame: load a previously saved game.
+    - user_setup: interactively asks the user for choices and returns a StartupAction.
+
+    Notes:
+    - If the user opts to load a game, no further configuration is requested.
+    - If the user chooses a new game, the module checks for a config file first,
+      falling back to manual configuration if none is found or invalid.
+    - All input is validated with loops until a valid response is provided.
+*/
+
+use crate::{gameconfig::GameConfig, manualconfig::get_manual_config};
 use std::io::{self, Write};
 
 pub enum StartupAction {
