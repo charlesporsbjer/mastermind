@@ -63,69 +63,6 @@ pub fn human_guess(gamestate: &mut Gamestate) {
     gamestate.flag_pegs.push(flags);
 }
 
-pub fn print_complexity_analysis(pegs: usize, allow_empty: bool) {
-    let colors: u128 = if allow_empty { 7 } else { 6 };
-    let width = pegs as u32;
-
-    // Calculate Search Space (N)
-    let total_combinations = colors.pow(width);
-
-    // Calculate Minimax Complexity (N^2)
-    // Since we compare every possible solution against every other solution
-    let minimax_checks = total_combinations
-        .checked_mul(total_combinations)
-        .unwrap_or(u128::MAX);
-
-    // Estimate CPU to 20 million "match checks" per second
-    let ops_per_sec = 20_000_000_u128;
-    let seconds_est = minimax_checks / ops_per_sec;
-
-    println!("\n---   !! COMPUTATIONAL COMPLEXITY WARNING !!    ---");
-    println!("Formula: Colors^Pegs = Search Space (N)");
-    println!("Minimax Complexity: N * N (The bot compares everything against everything)");
-    println!("----------------------------------------------------");
-    println!("{:<20} : {}", "Pegs", pegs);
-    println!("{:<20} : {}", "Colors", colors);
-    println!(
-        "{:<20} : {}",
-        "Total Candidates",
-        format_number(total_combinations)
-    );
-    println!(
-        "{:<20} : {}",
-        "Minimax Checks",
-        format_number(minimax_checks)
-    );
-    println!("----------------------------------------------------");
-
-    if seconds_est > 60 {
-        let minutes = seconds_est / 60;
-        println!("ESTIMATED TIME PER TURN: ~{} minutes", minutes);
-        println!("(!) This configuration is likely too slow for the HashSet/Minimax approach.");
-    } else if seconds_est > 5 {
-        println!("ESTIMATED TIME PER TURN: ~{} seconds", seconds_est);
-        println!("(!) You will notice a delay.");
-    } else {
-        println!("ESTIMATED TIME PER TURN: < 1 second (Instant)");
-    }
-    println!("----------------------------------------------------\n");
-}
-
-// Makes big numbers readable
-fn format_number(n: u128) -> String {
-    let s = n.to_string();
-    let mut result = String::new();
-    let mut count = 0;
-    for c in s.chars().rev() {
-        if count > 0 && count % 3 == 0 {
-            result.push(',');
-        }
-        result.push(c);
-        count += 1;
-    }
-    result.chars().rev().collect()
-}
-
 pub enum LoopAction {
     Continue,
     Break,
@@ -143,7 +80,7 @@ pub struct RoundResult {
     pub score_delta: u8,
 }
 
-pub fn calculate_round_result(gamestate: &Gamestate) -> RoundResult {
+fn calculate_round_result(gamestate: &Gamestate) -> RoundResult {
     let guesses_used = gamestate.guessed_lines.len() as u8;
     let is_win = gamestate.check_for_win();
     let bonus = if !is_win { 1 } else { 0 };

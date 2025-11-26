@@ -109,3 +109,73 @@ pub fn print_round_summary(gamestate: &Gamestate, result: &RoundResult) {
         gamestate.p1_score, p2_string, gamestate.p2_score
     );
 }
+
+pub fn print_complexity_analysis(pegs: usize, allow_empty: bool) {
+    let colors: u128 = if allow_empty { 7 } else { 6 };
+    let width = pegs as u32;
+
+    // Calculate Search Space (N)
+    let total_combinations = colors.pow(width);
+
+    // Calculate Minimax Complexity (N^2)
+    // Since we compare every possible solution against every other solution
+    let minimax_checks = total_combinations
+        .checked_mul(total_combinations)
+        .unwrap_or(u128::MAX);
+
+    // Estimate CPU to 20 million "match checks" per second
+    let ops_per_sec = 20_000_000_u128;
+    let seconds_est = minimax_checks / ops_per_sec;
+
+    println!("\n---   !! COMPUTATIONAL COMPLEXITY WARNING !!    ---");
+    println!("Formula: Colors^Pegs = Search Space (N)");
+    println!("Minimax Complexity: N * N (The bot compares everything against everything)");
+    println!("----------------------------------------------------");
+    println!("{:<20} : {}", "Pegs", pegs);
+    println!("{:<20} : {}", "Colors", colors);
+    println!(
+        "{:<20} : {}",
+        "Total Candidates",
+        format_number(total_combinations)
+    );
+    println!(
+        "{:<20} : {}",
+        "Minimax Checks",
+        format_number(minimax_checks)
+    );
+    println!("----------------------------------------------------");
+
+    if seconds_est > 60 {
+        let minutes = seconds_est / 60;
+        println!(
+            "ESTIMATED TIME PER TURN: ~{} minutes / available cores.",
+            minutes
+        );
+        println!("All your cores will be working at full speed for a while.");
+        println!("Please monitor CPU temp if performong this step for longer than a few seconds.");
+    } else if seconds_est > 5 {
+        println!(
+            "ESTIMATED TIME PER TURN: ~{} seconds / available cores.",
+            seconds_est
+        );
+        println!("(!) You will notice a delay.");
+    } else {
+        println!("ESTIMATED TIME PER TURN: < 1 second (Instant)");
+    }
+    println!("----------------------------------------------------\n");
+}
+
+// Makes big numbers readable
+fn format_number(n: u128) -> String {
+    let s = n.to_string();
+    let mut result = String::new();
+    let mut count = 0;
+    for c in s.chars().rev() {
+        if count > 0 && count % 3 == 0 {
+            result.push(',');
+        }
+        result.push(c);
+        count += 1;
+    }
+    result.chars().rev().collect()
+}

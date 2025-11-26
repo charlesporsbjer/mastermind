@@ -16,8 +16,9 @@ mod usersetup;
 use crate::{
     bot::bot_guess,
     draw::draw_board,
-    gamelogic::{LoopAction, handle_end_of_round, human_guess, print_complexity_analysis},
+    gamelogic::{LoopAction, handle_end_of_round, human_guess},
     gamestate::RoundStatus,
+    prints::print_complexity_analysis,
     startup::handle_startup,
     types::GameMode,
     usersetup::user_setup,
@@ -40,7 +41,7 @@ fn main() {
     let startup_action = user_setup();
     let (mut gamestate, mut bot) = handle_startup(startup_action);
     match gamestate.game_mode {
-        GameMode::Practice | GameMode::SpectateBot => {
+        GameMode::Practice | GameMode::SpectateBot | GameMode::PlayerVsBot => {
             gamestate.target_line = gamestate.randomize_target_line();
         }
         _ => {}
