@@ -34,7 +34,6 @@ pub struct GameConfig {
 impl GameConfig {
     pub fn load_from_file(filename: &str) -> Option<Self> {
         if !Path::new(filename).exists() {
-            println!("Config file not found, falling back to defaults...");
             return None;
         }
 
