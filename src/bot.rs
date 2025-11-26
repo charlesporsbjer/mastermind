@@ -30,9 +30,9 @@ use crate::{
     types::{Color, Feedback, Line},
 };
 
-use fxhash::FxHashMap;
 use rand::{Rng, rng};
 use rayon::prelude::*;
+use rustc_hash::FxHashMap;
 use std::collections::HashSet;
 
 #[derive(Clone)]
