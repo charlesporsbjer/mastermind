@@ -31,6 +31,8 @@ use crate::{
 };
 
 use rand::{Rng, rng};
+use rayon::prelude::*;
+use rustc_hash::FxHashMap;
 use std::collections::HashSet;
 
 #[derive(Clone)]
@@ -148,7 +150,7 @@ impl Bot {
         self.is_first_guess = true;
     }
 
-    fn make_educated_guess(&mut self) -> Line {
+    fn make_educated_guess_parallel(&mut self) -> Line {
         // Just make a starting guess if is_first_guess
         if self.is_first_guess {
             self.is_first_guess = false;
@@ -157,45 +159,39 @@ impl Bot {
             return guess;
         }
 
-        let mut best_guess = None;
-        let mut best_score = usize::MAX;
+        // Parallel iterator over possible guesses
+        let best_guess = self
+            .possible_solutions
+            .par_iter() // <-- parallel
+            .filter(|guess| !self.guessed_lines.contains(guess))
+            .map(|guess| {
+                // Map to count how often each feedback occurs when comparing this guess with all
+                // potential solutions.
+                let mut feedback_counts: FxHashMap<Feedback, usize> = FxHashMap::default();
 
-        for guess in &self.possible_solutions {
-            if self.guessed_lines.contains(guess) {
-                continue; // Skip already guessed lines
-            }
-            // Map to count how often each feedback occurs when comparing this guess with all
-            // potential solutions.
-            let mut feedback_counts = std::collections::HashMap::new();
-
-            // Increment the usize variable in solutions that would produce this feedback
-            // - entry(feedback) looks up the key 'feedback' in the Map
-            // - or_insert(0) inserts 0 if the key doesn't exist yet
-            // -*... += 1 derefences the mutable reference returned by or_insert
-            for solution in &self.possible_solutions {
-                let (_, feedback) = check_for_matches(solution, guess);
-                *feedback_counts.entry(feedback).or_insert(0) += 1;
-            }
-
-            // Find the feedback value that would leave the most remaining solutions (worst-case)
-            // - values() returns references to the usize counts
-            // - cloned() converts them to owned usize values
-            // - max() finds the largest count
-            // unwrap_or(0) handles the case where the map is empty
-            let worst_case = feedback_counts.values().cloned().max().unwrap_or(0);
-
-            // Minimize the worst case after each iteration
-            if worst_case < best_score {
-                best_score = worst_case;
-                best_guess = Some(guess.clone());
-            }
-        }
-        let final_guess = best_guess
+                // Increment the usize variable in solutions that would produce this feedback
+                // - entry(feedback) looks up the key 'feedback' in the Map
+                // - or_insert(0) inserts 0 if the key doesn't exist yet
+                // -*... += 1 derefences the mutable reference returned by or_insert
+                for solution in &self.possible_solutions {
+                    let (_, feedback) = check_for_matches(solution, guess);
+                    *feedback_counts.entry(feedback).or_insert(0) += 1;
+                }
+                // Find the feedback value that would leave the most remaining solutions (worst-case)
+                // - values() returns references to the usize counts
+                // - cloned() converts them to owned usize values
+                // - max() finds the largest count
+                // unwrap_or(0) handles the case where the map is empty
+                let worst_case = feedback_counts.values().cloned().max().unwrap_or(0);
+                (guess.clone(), worst_case)
+            })
+            .min_by_key(|(_, worst_case)| *worst_case) // minimize worst-case
+            .map(|(guess, _)| guess.clone())
             .or_else(|| self.possible_solutions.iter().next().cloned())
             .expect("possible_solutions set is empty");
 
-        self.guessed_lines.push(final_guess.clone());
-        final_guess
+        self.guessed_lines.push(best_guess.clone());
+        best_guess
     }
 }
 
@@ -206,7 +202,7 @@ pub fn reset_bot_for_new_round(bot: &mut Option<Bot>, gamestate: &Gamestate) {
 }
 
 pub fn handle_bot_input(bot_ref: &mut Bot, gamestate: &mut Gamestate) {
-    let new_guess = bot_ref.make_educated_guess();
+    let new_guess = bot_ref.make_educated_guess_parallel();
     let (flags, feedback) = check_for_matches(&gamestate.target_line, &new_guess);
     bot_ref.current_guess = new_guess.clone();
     bot_ref.current_feedback = feedback;

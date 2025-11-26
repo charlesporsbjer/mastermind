@@ -93,7 +93,7 @@ pub fn parse_game_mode(value: &str) -> Option<GameMode> {
 fn ask_game_mode() -> GameMode {
     loop {
         print!(
-            "What game mode do you wish to play? (P)ractice / (2)-Player / Player Vs (B)ot) / S(p)ectate Bot: "
+            "What game mode do you wish to play? (P)ractice / (2)-Player / Player Vs (B)ot) / (S)pectate Bot: "
         );
         io::stdout().flush().unwrap();
 
