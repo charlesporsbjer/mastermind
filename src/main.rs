@@ -30,7 +30,7 @@ use std::env;
 // OPTIONAL: Convert bot logic from HashSet to Index-To-Line Conversion / Base-N Counting.
 // OPTIONAL: fix the math in time_estimation.
 // OPTIONAL: expand number of colors to allow more colors.
-// OPTIONAL: use real graphics lib.
+// OPTIONAL: use real graphics lib or convert to TUI graphics.
 
 fn main() {
     unsafe {
@@ -55,7 +55,7 @@ fn main() {
         if !gamestate.round_over {
             if gamestate.is_bot_guessing_this_round {
                 bot_guess(&mut gamestate, &mut bot);
-            } else if !gamestate.round_over {
+            } else {
                 // Human is guessing (P1 in PvB, Practice, or TwoPlayer)
                 human_guess(&mut gamestate);
             }
